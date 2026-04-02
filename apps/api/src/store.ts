@@ -403,6 +403,10 @@ class InMemoryStore {
     return qrCode;
   }
 
+  listQrCodesForOwner(ownerId: string) {
+    return this.qrCodes.filter((qr) => qr.ownerId === ownerId);
+  }
+
   resolveQr(token: string) {
     const qrCode = this.qrCodes.find((entry) => entry.token === token && entry.status === "active");
     if (!qrCode) {

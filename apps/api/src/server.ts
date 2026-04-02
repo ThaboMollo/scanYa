@@ -11,7 +11,7 @@ const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:5173";
 
 app.use(
   cors({
-    origin: appBaseUrl,
+    origin: [appBaseUrl, "http://127.0.0.1:5173"],
   }),
 );
 app.use(express.json());
@@ -240,6 +240,11 @@ app.post("/bookings/:id/reject", requireRole("asset_owner"), (request: Authentic
   } catch (error) {
     response.status(404).json({ error: (error as Error).message });
   }
+});
+
+app.get("/qr/mine", requireRole("asset_owner"), (request: AuthenticatedRequest, response) => {
+  const qrCodes = store.listQrCodesForOwner(request.user!.id);
+  response.json({ qrCodes });
 });
 
 app.post("/assets/:id/qr", requireRole("asset_owner"), (request: AuthenticatedRequest, response) => {

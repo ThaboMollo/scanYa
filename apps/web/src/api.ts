@@ -5,6 +5,7 @@ import type {
   LoginResponse,
   MonthAvailabilityResponse,
   PublicUser,
+  QrCode,
   Session,
   User,
 } from "@scanya/shared";
@@ -132,6 +133,19 @@ export const api = {
   rejectBooking(token: string, bookingId: string) {
     return request<{ booking: Booking }>(
       `/bookings/${bookingId}/reject`,
+      { method: "POST" },
+      token,
+    );
+  },
+  listMyQrCodes(token: string) {
+    return request<{ qrCodes: QrCode[] }>("/qr/mine", {}, token);
+  },
+  resolveQr(token: string) {
+    return request<{ qrCode: QrCode }>(`/q/${token}`);
+  },
+  createQrCode(token: string, assetId: string) {
+    return request<{ qrCode: QrCode }>(
+      `/assets/${assetId}/qr`,
       { method: "POST" },
       token,
     );
