@@ -84,7 +84,7 @@ type AppContextValue = {
   setMessage: (value: string) => void;
   setRegisterForm: (next: RegisterFormState) => void;
   setSession: (next: SessionState | null) => void;
-  signIn: (event: FormEvent) => Promise<void>;
+  signIn: (event: FormEvent) => Promise<boolean>;
   signOut: () => void;
   signUp: (event: FormEvent) => Promise<void>;
   updateBookingDecision: (bookingId: string, action: "confirm" | "reject") => Promise<void>;
@@ -201,15 +201,17 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }
 
-  async function signIn(event: FormEvent) {
+  async function signIn(event: FormEvent): Promise<boolean> {
     event.preventDefault();
 
     try {
       const response = await api.login(loginForm.email, loginForm.password);
       setSession({ token: response.session.token, user: response.user });
       setMessage(`Signed in as ${response.user.name}.`);
+      return true;
     } catch (error) {
       setMessage((error as Error).message);
+      return false;
     }
   }
 

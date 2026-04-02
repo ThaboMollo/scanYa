@@ -10,9 +10,11 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await signIn(e);
+    const success = await signIn(e);
     setSubmitting(false);
-    navigate("/app");
+    if (success) {
+      navigate("/app");
+    }
   };
 
   return (
