@@ -15,16 +15,18 @@ export const attachAuth = (
   _response: Response,
   next: NextFunction,
 ) => {
+  void (async () => {
     const token = getTokenFromHeader(request.headers.authorization);
-    const session = store.getSession(token);
+    const session = await store.getSession(token);
 
     if (session) {
       request.session = session;
-      request.user = store.getUserById(session.userId) ?? undefined;
+      request.user = (await store.getUserById(session.userId)) ?? undefined;
     }
 
     next();
-  };
+  })().catch(next);
+};
 
 export const requireAuth = (
   request: AuthenticatedRequest,

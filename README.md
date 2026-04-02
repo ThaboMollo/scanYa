@@ -35,7 +35,7 @@ Booking-first event and asset platform scaffold for QR-led discovery and booking
 - `organizer@scanya.app` / `password123`
 
 ## Current Constraints
-- Data is stored in memory in the API for fast MVP iteration.
+- The API now expects a MongoDB cluster via `MONGODB_URI` and `MONGODB_DB_NAME`.
 - Notifications are represented as API messages and placeholders, not a real mail worker yet.
 - Event creation and discovery docs exist, but implementation is not built yet.
 - Authentication uses a simple bearer token session for the scaffold and should be upgraded before production.
