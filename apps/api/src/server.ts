@@ -4,6 +4,7 @@ import { z } from "zod";
 import { attachAuth, requireAuth, requireRole } from "./auth.js";
 import { store, toPublicUser } from "./store.js";
 import type { AuthenticatedRequest } from "./types.js";
+import type { CreateAssetInput, CreateBookingInput, RegisterInput } from "./store.js";
 
 const app = express();
 const port = Number(process.env.API_PORT ?? 4000);
@@ -98,7 +99,8 @@ app.post("/auth/register", async (request, response) => {
   }
 
   try {
-    const user = await store.registerUser(result.data);
+    const payload: RegisterInput = result.data;
+    const user = await store.registerUser(payload);
     response.status(201).json({ user: toPublicUser(user) });
   } catch (error) {
     response.status(400).json({ error: (error as Error).message });
@@ -155,7 +157,8 @@ app.post("/assets", requireRole("asset_owner"), async (request: AuthenticatedReq
   }
 
   try {
-    const asset = await store.createAsset(request.user!.id, result.data);
+    const payload: CreateAssetInput = result.data;
+    const asset = await store.createAsset(request.user!.id, payload);
     response.status(201).json({ asset });
   } catch (error) {
     response.status(400).json({ error: (error as Error).message });
@@ -232,7 +235,8 @@ app.post("/bookings", async (request: AuthenticatedRequest, response) => {
   }
 
   try {
-    const booking = await store.createBooking(request.user?.id ?? null, result.data);
+    const payload: CreateBookingInput = result.data;
+    const booking = await store.createBooking(request.user?.id ?? null, payload);
     response.status(201).json({
       booking,
       notification: "Booking request received. Owner notification queued.",
