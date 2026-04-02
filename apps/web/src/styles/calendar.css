@@ -1,1 +1,463 @@
-/* Calendar component styles — populated in Task 4 */
+/* ============================================================
+   Month Calendar
+   ============================================================ */
+
+.month-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.month-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.month-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.month-nav-btn:hover {
+  background: var(--neutral-bg);
+  border-color: var(--border-light);
+}
+
+.month-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.month-day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.month-day-header {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.month-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-size: 14px;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.month-cell--available {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success-border);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.month-cell--available:hover {
+  background: var(--success-border);
+}
+
+.month-cell--available:active {
+  background: var(--brand);
+  color: var(--text-white);
+  border-color: var(--brand-dark);
+}
+
+.month-cell--unavailable {
+  background: var(--neutral-bg);
+  color: var(--text-dimmed);
+  border-color: transparent;
+}
+
+.month-cell--past {
+  color: var(--text-dimmed);
+  background: transparent;
+}
+
+.month-cell--other {
+  color: var(--border);
+  background: transparent;
+}
+
+.month-cell:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.month-cell-dot {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.month-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.month-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.month-legend-swatch--available {
+  background: var(--success-light);
+  border-color: var(--success-border);
+}
+
+.month-legend-swatch--unavailable {
+  background: var(--neutral-bg);
+  border-color: var(--border-light);
+}
+
+.month-hint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ============================================================
+   Day Timeline
+   ============================================================ */
+
+.day-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-timeline-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.day-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.day-back-btn:hover {
+  background: var(--neutral-bg);
+  border-color: var(--border-light);
+}
+
+.day-timeline-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.day-timeline-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.day-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-slot-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.day-slot-times {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+}
+
+.day-slot-start {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-slot-end {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.day-slot-bar {
+  width: 3px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.day-slot-bar--available {
+  background: var(--success);
+}
+
+.day-slot-bar--selected {
+  background: var(--brand);
+}
+
+.day-slot-bar--booked {
+  background: var(--text-dimmed);
+}
+
+.day-slot-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.day-slot-card--available {
+  background: var(--success-light);
+  border-color: var(--success-border);
+  color: var(--text-primary);
+}
+
+.day-slot-card--available:hover {
+  background: var(--success-border);
+}
+
+.day-slot-card--selected {
+  background: var(--brand-light);
+  border: 2px solid var(--brand);
+  box-shadow: var(--shadow-brand);
+  color: var(--text-primary);
+}
+
+.day-slot-card--booked {
+  background: var(--neutral-bg);
+  border-color: var(--border-light);
+  color: var(--text-dimmed);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.day-slot-card:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.day-slot-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.day-slot-card--available .day-slot-label {
+  color: var(--success);
+}
+
+.day-slot-card--selected .day-slot-label {
+  color: var(--brand);
+}
+
+.day-slot-card--booked .day-slot-label {
+  color: var(--text-dimmed);
+}
+
+.day-slot-duration {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.day-slot-action {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+
+.day-slot-card--available .day-slot-action {
+  background: var(--success);
+  color: var(--text-white);
+}
+
+.day-slot-card--selected .day-slot-action {
+  background: transparent;
+  color: var(--brand);
+  border: 1px solid var(--brand);
+}
+
+.day-slot-card--booked .day-slot-action {
+  background: transparent;
+  color: var(--text-dimmed);
+}
+
+.day-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 24px 0;
+  margin: 0;
+}
+
+.day-summary {
+  margin-top: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.day-summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.day-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-summary-duration {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Booking Calendar container
+   ============================================================ */
+
+.booking-calendar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.booking-calendar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+/* ============================================================
+   Booking Success
+   ============================================================ */
+
+.booking-success {
+  text-align: center;
+  padding: 32px;
+}
+
+.booking-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--success-light);
+  color: var(--success);
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 auto 16px;
+  border: 2px solid var(--success-border);
+}
+
+.booking-success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+
+.booking-success-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin: 0 auto 8px;
+  line-height: 1.6;
+}
+
+.booking-success-ref {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 8px 0 0;
+}
