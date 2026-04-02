@@ -1,1 +1,431 @@
-/* Workspace track styles — populated in Task 8 */
+/* === Workspace Layout === */
+.workspace-layout {
+  display: flex;
+  min-height: 100dvh;
+}
+
+/* Desktop sidebar */
+.workspace-sidebar {
+  width: 220px;
+  background: var(--sidebar-bg);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+}
+
+.sidebar-logo {
+  padding: 0 20px 24px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-white);
+}
+
+.sidebar-logo span {
+  color: var(--brand);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-link {
+  padding: 10px 20px;
+  color: var(--text-dimmed);
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-decoration: none;
+}
+
+.sidebar-link:hover {
+  color: var(--text-white);
+}
+
+.sidebar-link--active {
+  background: rgba(232, 115, 74, 0.15);
+  border-left: 3px solid var(--brand);
+  color: var(--text-white);
+  font-weight: 600;
+}
+
+.sidebar-badge {
+  background: var(--brand);
+  color: var(--text-white);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.sidebar-user {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-user-name {
+  font-size: 13px;
+  color: var(--text-white);
+  font-weight: 500;
+}
+
+.sidebar-user-role {
+  font-size: 11px;
+  color: var(--text-dimmed);
+}
+
+.sidebar-signout {
+  font-size: 12px;
+  color: var(--text-dimmed);
+  margin-top: 8px;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.sidebar-signout:hover {
+  color: var(--text-white);
+}
+
+/* Main content area */
+.workspace-main {
+  flex: 1;
+  margin-left: 220px;
+  padding: 28px 32px;
+  background: var(--bg-workspace);
+  min-height: 100dvh;
+}
+
+/* Mobile bottom tabs */
+.workspace-bottom-tabs {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .workspace-sidebar {
+    display: none;
+  }
+
+  .workspace-main {
+    margin-left: 0;
+    padding: 20px 16px 80px;
+  }
+
+  .workspace-bottom-tabs {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--sidebar-bg);
+    z-index: 20;
+    padding: 8px 0;
+    justify-content: space-around;
+  }
+
+  .tab-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+    color: var(--text-dimmed);
+    font-size: 10px;
+    text-decoration: none;
+    position: relative;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .tab-link--active {
+    color: var(--brand);
+  }
+
+  .tab-icon {
+    font-size: 18px;
+  }
+
+  .tab-badge {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: var(--brand);
+    color: var(--text-white);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+  }
+}
+
+/* === Dashboard === */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dashboard-greeting {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (min-width: 640px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+
+.stat-card--brand {
+  background: var(--brand-light);
+  border-color: var(--brand-border);
+}
+
+.stat-card--success {
+  background: var(--success-light);
+  border-color: var(--success-border);
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-card--brand .stat-card-label {
+  color: var(--brand-dark);
+}
+
+.stat-card--success .stat-card-label {
+  color: var(--success);
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-card--brand .stat-card-value {
+  color: var(--brand);
+}
+
+.stat-card--success .stat-card-value {
+  color: var(--success);
+}
+
+/* === Section Headers === */
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* === Booking Card === */
+.booking-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.booking-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.booking-card-requester {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.booking-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.booking-card-email {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.booking-card-details {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.booking-card-detail strong {
+  color: var(--text-primary);
+}
+
+.booking-card-notes {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  border-left: 3px solid var(--border);
+}
+
+.booking-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (min-width: 1024px) {
+  .booking-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .booking-card-actions {
+    margin-top: 0;
+    flex-shrink: 0;
+  }
+}
+
+/* === Status Pill === */
+.status-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* === Filter Tabs === */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.filter-tab--active {
+  color: var(--brand);
+  background: var(--brand-light);
+  font-weight: 600;
+}
+
+/* === Asset Management Cards === */
+.workspace-asset-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.workspace-asset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.workspace-asset-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.workspace-asset-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 16px;
+}
+
+.workspace-asset-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* === Empty State === */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
