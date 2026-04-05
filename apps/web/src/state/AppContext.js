@@ -110,8 +110,12 @@ export function AppProvider({ children }) {
     }, []);
     async function refreshAssets() {
         try {
-            const response = await api.listAssets();
-            setAssets(response.assets);
+            const { data, error } = await supabase
+                .from("assets")
+                .select("*")
+                .eq("status", "published");
+            if (error) throw error;
+            setAssets(data);
         }
         catch (error) {
             setMessage(error.message);
@@ -119,8 +123,32 @@ export function AppProvider({ children }) {
     }
     async function loadAvailability(assetId, date) {
         try {
-            const response = await api.getAvailability(assetId, date);
-            setAvailability(response);
+            const dayOfWeek = new Date(date).getDay();
+            const { data: rules } = await supabase
+                .from("asset_availability_rules")
+                .select("*")
+                .eq("asset_id", assetId)
+                .eq("day_of_week", dayOfWeek);
+
+            const dayStart = `${date}T00:00:00.000Z`;
+            const dayEnd = `${date}T23:59:59.999Z`;
+            const { data: dayBookings } = await supabase
+                .from("bookings")
+                .select("*")
+                .eq("asset_id", assetId)
+                .in("status", ["pending", "confirmed"])
+                .gte("start_at", dayStart)
+                .lte("start_at", dayEnd);
+
+            setAvailability({
+                assetId,
+                date,
+                windows: (rules ?? []).map((r) => ({
+                    startHour: r.start_hour,
+                    endHour: r.end_hour,
+                })),
+                bookings: dayBookings ?? [],
+            });
         }
         catch (error) {
             setAvailability(null);
@@ -202,8 +230,11 @@ export function AppProvider({ children }) {
         try {
             const response = await api.createBooking(session.token, { assetId, ...bookingForm });
             setMessage(response.notification);
-            const myBookings = await api.listMyBookings(session.token);
-            setBookings(myBookings.bookings);
+            const { data: myBookings } = await supabase
+                .from("bookings")
+                .select("*, assets(title)")
+                .eq("requester_id", session.user.id);
+            setBookings(myBookings ?? []);
             await loadAvailability(assetId, selectedDate);
         }
         catch (error) {
@@ -237,8 +268,11 @@ export function AppProvider({ children }) {
             else {
                 await api.rejectBooking(session.token, bookingId);
             }
-            const owner = await api.listOwnerBookings(session.token);
-            setOwnerBookings(owner.bookings);
+            const { data: owned } = await supabase
+                .from("bookings")
+                .select("*, assets!inner(title, owner_id)")
+                .eq("assets.owner_id", session.user.id);
+            setOwnerBookings(owned ?? []);
             setMessage(`Booking ${action}ed.`);
         }
         catch (error) {
@@ -247,8 +281,43 @@ export function AppProvider({ children }) {
     }
     const loadMonthAvailability = useCallback(async (assetId, month) => {
         try {
-            const data = await api.getMonthAvailability(assetId, month);
-            setMonthAvailability(data);
+            const { data: rules } = await supabase
+                .from("asset_availability_rules")
+                .select("*")
+                .eq("asset_id", assetId);
+
+            const [year, mo] = month.split("-").map(Number);
+            const daysInMonth = new Date(year, mo, 0).getDate();
+            const monthStart = `${month}-01T00:00:00.000Z`;
+            const monthEnd = `${month}-${String(daysInMonth).padStart(2, "0")}T23:59:59.999Z`;
+
+            const { data: monthBookings } = await supabase
+                .from("bookings")
+                .select("*")
+                .eq("asset_id", assetId)
+                .in("status", ["pending", "confirmed"])
+                .gte("start_at", monthStart)
+                .lte("start_at", monthEnd);
+
+            const days = {};
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${month}-${String(d).padStart(2, "0")}`;
+                const dayOfWeek = new Date(dateStr).getDay();
+                const dayRules = (rules ?? []).filter((r) => r.day_of_week === dayOfWeek);
+                const dayBk = (monthBookings ?? []).filter(
+                    (b) => b.start_at.slice(0, 10) === dateStr
+                );
+                days[dateStr] = {
+                    totalWindowHours: dayRules.reduce((sum, r) => sum + (r.end_hour - r.start_hour), 0),
+                    bookedHours: dayBk.reduce((sum, b) => {
+                        const s = new Date(b.start_at);
+                        const e = new Date(b.end_at);
+                        return sum + (e - s) / (1000 * 60 * 60);
+                    }, 0),
+                    hasAvailability: dayRules.length > 0,
+                };
+            }
+            setMonthAvailability({ assetId, month, days });
         }
         catch (error) {
             setMessage(error.message);
