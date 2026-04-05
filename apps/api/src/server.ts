@@ -1,9 +1,9 @@
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
-import { attachAuth, requireAuth, requireRole } from "./auth.js";
-import { store, toPublicUser } from "./store.js";
-import type { AuthenticatedRequest } from "./types.js";
+import { attachAuth, requireAuth, requireRole } from "./middleware/auth.js";
+import { initializeStore, store, toPublicUser } from "./store.js";
+import type { AuthenticatedRequest } from "./middleware/auth.js";
 import type { CreateAssetInput, CreateBookingInput, RegisterInput } from "./store.js";
 
 const app = express();
@@ -301,7 +301,7 @@ app.get("/q/:token", async (request, response) => {
   }
 });
 
-await store.initialize();
+await initializeStore();
 
 app.listen(port, () => {
   console.log(`scanYa API listening on port ${port}`);
