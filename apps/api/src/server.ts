@@ -219,8 +219,11 @@ app.post("/assets/:id/qr", writeLimiter, requireRole("asset_owner"), async (requ
 
 // ─── Start ──────────────────────────────────────────────────────────────────
 
-app.listen(port, () => {
-  console.log(`scanYa API listening on port ${port}`);
-});
+// Only listen when running locally (not on Vercel)
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`scanYa API listening on port ${port}`);
+  });
+}
 
-export { app };
+export default app;
