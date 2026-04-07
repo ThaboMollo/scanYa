@@ -88,20 +88,25 @@ export function AppProvider({ children }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, supaSession) => {
-                if (event === "SIGNED_OUT" || !supaSession) {
+                if (event === "SIGNED_OUT") {
                     setSession(null);
+                    setBookings([]);
+                    setOwnerBookings([]);
                     return;
                 }
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", supaSession.user.id)
-                    .single();
-                if (profile) {
-                    setSession({
-                        token: supaSession.access_token,
-                        user: { ...profile, email: supaSession.user.email },
-                    });
+                if (!supaSession) return;
+                if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+                    const { data: profile } = await supabase
+                        .from("profiles")
+                        .select("*")
+                        .eq("id", supaSession.user.id)
+                        .single();
+                    if (profile) {
+                        setSession({
+                            token: supaSession.access_token,
+                            user: { ...profile, email: supaSession.user.email },
+                        });
+                    }
                 }
             },
         );
@@ -344,9 +349,11 @@ export function AppProvider({ children }) {
         }
     }, [selectedSlot]);
     async function signOut() {
-        await supabase.auth.signOut();
         setSession(null);
+        setBookings([]);
+        setOwnerBookings([]);
         setMessage("Signed out.");
+        await supabase.auth.signOut();
     }
     function clearMessage() {
         setMessage("");
