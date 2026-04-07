@@ -123,10 +123,14 @@ create policy "Owner manages QR codes"
   on qr_codes for all using (auth.uid() = owner_id);
 
 -- Auto-create profile on signup (trigger)
-create or replace function handle_new_user()
-returns trigger as $$
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, role, name, company)
+  insert into public.profiles (id, role, name, company)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'role', 'attendee'),
@@ -135,7 +139,7 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users

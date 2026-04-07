@@ -21,12 +21,12 @@ const initialRegisterForm = {
     company: "",
     email: "",
     name: "",
-    password: "password123",
+    password: "",
     role: "attendee",
 };
 const initialBookingForm = {
-    contactEmail: "attendee@scanya.app",
-    contactName: "Attendee Demo",
+    contactEmail: "",
+    contactName: "",
     endAt: `${tomorrow()}T16:00:00.000Z`,
     notes: "",
     startAt: `${tomorrow()}T10:00:00.000Z`,
@@ -40,8 +40,8 @@ export function AppProvider({ children }) {
     const [ownerBookings, setOwnerBookings] = useState([]);
     const [message, setMessage] = useState("");
     const [loginForm, setLoginForm] = useState({
-        email: "attendee@scanya.app",
-        password: "password123",
+        email: "",
+        password: "",
     });
     const [registerForm, setRegisterForm] = useState(initialRegisterForm);
     const [assetForm, setAssetForm] = useState(emptyAssetForm);
