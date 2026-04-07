@@ -93,7 +93,7 @@ app.post("/assets", writeLimiter, requireRole("asset_owner"), async (request: Au
   }
 
   try {
-    const asset = await store.createAsset(request.userId!, result.data);
+    const asset = await store.createAsset(request.userId!, result.data as store.CreateAssetInput);
     response.status(201).json({ asset });
   } catch (error) {
     response.status(400).json({ error: (error as Error).message });
@@ -144,7 +144,7 @@ app.post("/bookings", bookingLimiter, async (request: AuthenticatedRequest, resp
   try {
     const { booking, asset, isAnonymous, verificationToken } = await store.createBooking(
       request.userId ?? null,
-      result.data,
+      result.data as store.CreateBookingInput,
     );
 
     if (isAnonymous && verificationToken) {
