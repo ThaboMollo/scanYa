@@ -110,7 +110,8 @@ app.post("/assets", writeLimiter, requireRole("asset_owner"), async (request: Au
 
   try {
     const asset = await store.createAsset(request.userId!, result.data as store.CreateAssetInput);
-    response.status(201).json({ asset });
+    const qrCode = await store.createQrCode(asset.id, "asset_booking", request.userId!);
+    response.status(201).json({ asset, qrCode });
   } catch (error) {
     response.status(400).json({ error: (error as Error).message });
   }

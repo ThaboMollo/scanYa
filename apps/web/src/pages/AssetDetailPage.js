@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 import { BookingCalendar } from "../components/BookingCalendar";
-import { api } from "../api";
+import { supabase } from "../lib/supabase";
+import { mapQrCode } from "../lib/dbMappers";
 export function AssetDetailPage() {
     const { assetId, token } = useParams();
     const { assets, refreshAssets } = useAppState();
@@ -33,7 +34,15 @@ export function AssetDetailPage() {
             setIsResolving(true);
             setResolveError("");
             try {
-                const { qrCode } = await api.resolveQr(token);
+                const { data, error } = await supabase
+                    .from("qr_codes")
+                    .select("*")
+                    .eq("token", token)
+                    .eq("status", "active")
+                    .single();
+                if (error)
+                    throw error;
+                const qrCode = mapQrCode(data);
                 if (cancelled) {
                     return;
                 }

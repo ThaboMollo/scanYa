@@ -2,6 +2,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, } from "react";
 import { api } from "../api";
 import { supabase } from "../lib/supabase";
+import { mapAsset, mapBooking, mapProfile } from "../lib/dbMappers";
 const AppContext = createContext(null);
 const tomorrow = () => {
     const date = new Date();
@@ -21,16 +22,40 @@ const initialRegisterForm = {
     company: "",
     email: "",
     name: "",
-    password: "",
+    password: "password123",
     role: "attendee",
 };
 const initialBookingForm = {
-    contactEmail: "",
-    contactName: "",
+    contactEmail: "attendee@scanya.app",
+    contactName: "Attendee Demo",
     endAt: `${tomorrow()}T16:00:00.000Z`,
     notes: "",
     startAt: `${tomorrow()}T10:00:00.000Z`,
 };
+function mergeAssets(primary, secondary) {
+    return Array.from(new Map([...primary, ...secondary].map((asset) => [asset.id, asset])).values());
+}
+function buildWindows(date, rules) {
+    return rules.map((rule) => ({
+        startAt: `${date}T${String(rule.start_hour).padStart(2, "0")}:00:00.000Z`,
+        endAt: `${date}T${String(rule.end_hour).padStart(2, "0")}:00:00.000Z`,
+    }));
+}
+function mapAuthUser(user, profile) {
+    if (profile) {
+        return mapProfile(profile, user.email ?? "");
+    }
+    const metadata = user.user_metadata ?? {};
+    return {
+        id: user.id,
+        company: metadata.company ?? "",
+        createdAt: user.created_at ?? "",
+        email: user.email ?? "",
+        lastLoginAt: null,
+        name: metadata.name ?? user.email ?? "User",
+        role: metadata.role ?? "attendee",
+    };
+}
 export function AppProvider({ children }) {
     const [session, setSession] = useState(null);
     const [assets, setAssets] = useState([]);
@@ -40,8 +65,8 @@ export function AppProvider({ children }) {
     const [ownerBookings, setOwnerBookings] = useState([]);
     const [message, setMessage] = useState("");
     const [loginForm, setLoginForm] = useState({
-        email: "",
-        password: "",
+        email: "attendee@scanya.app",
+        password: "password123",
     });
     const [registerForm, setRegisterForm] = useState(initialRegisterForm);
     const [assetForm, setAssetForm] = useState(emptyAssetForm);
@@ -56,8 +81,71 @@ export function AppProvider({ children }) {
     const [bookingStep, setBookingStep] = useState("calendar");
     const [lastBookingRef, setLastBookingRef] = useState(null);
     const sessionToken = session?.token ?? "";
+    const userId = session?.user.id ?? "";
+    const refreshAssets = useCallback(async () => {
+        try {
+            const { data: publishedRows, error: publishedError } = await supabase
+                .from("assets")
+                .select("*")
+                .eq("status", "published")
+                .order("created_at", { ascending: false });
+            if (publishedError)
+                throw publishedError;
+            let nextAssets = (publishedRows ?? []).map(mapAsset);
+            if (userId) {
+                const { data: ownedRows, error: ownedError } = await supabase
+                    .from("assets")
+                    .select("*")
+                    .eq("owner_id", userId)
+                    .order("created_at", { ascending: false });
+                if (ownedError)
+                    throw ownedError;
+                nextAssets = mergeAssets((ownedRows ?? []).map(mapAsset), nextAssets);
+            }
+            setAssets(nextAssets);
+        }
+        catch (error) {
+            setMessage(error.message);
+        }
+    }, [userId]);
     useEffect(() => {
         void refreshAssets();
+    }, [refreshAssets]);
+    useEffect(() => {
+        supabase.auth.getSession().then(async ({ data }) => {
+            const supaSession = data.session;
+            if (!supaSession)
+                return;
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", supaSession.user.id)
+                .maybeSingle();
+            setSession({
+                token: supaSession.access_token,
+                user: mapAuthUser(supaSession.user, profile),
+            });
+        });
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, supaSession) => {
+            if (event === "SIGNED_OUT") {
+                setSession(null);
+                setBookings([]);
+                setOwnerBookings([]);
+                return;
+            }
+            if (!supaSession || (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED"))
+                return;
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", supaSession.user.id)
+                .maybeSingle();
+            setSession({
+                token: supaSession.access_token,
+                user: mapAuthUser(supaSession.user, profile),
+            });
+        });
+        return () => subscription.unsubscribe();
     }, []);
     useEffect(() => {
         if (!session) {
@@ -67,92 +155,32 @@ export function AppProvider({ children }) {
         }
         void hydrateSession(session);
     }, [sessionToken]);
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session: supaSession } }) => {
-            if (supaSession) {
-                supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", supaSession.user.id)
-                    .single()
-                    .then(({ data: profile }) => {
-                        if (profile) {
-                            setSession({
-                                token: supaSession.access_token,
-                                user: { ...profile, email: supaSession.user.email },
-                            });
-                        }
-                    });
-            }
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, supaSession) => {
-                if (event === "SIGNED_OUT") {
-                    setSession(null);
-                    setBookings([]);
-                    setOwnerBookings([]);
-                    return;
-                }
-                if (!supaSession) return;
-                if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-                    const { data: profile } = await supabase
-                        .from("profiles")
-                        .select("*")
-                        .eq("id", supaSession.user.id)
-                        .single();
-                    if (profile) {
-                        setSession({
-                            token: supaSession.access_token,
-                            user: { ...profile, email: supaSession.user.email },
-                        });
-                    }
-                }
-            },
-        );
-
-        return () => subscription.unsubscribe();
-    }, []);
-    async function refreshAssets() {
-        try {
-            const { data, error } = await supabase
-                .from("assets")
-                .select("*")
-                .eq("status", "published");
-            if (error) throw error;
-            setAssets(data);
-        }
-        catch (error) {
-            setMessage(error.message);
-        }
-    }
     async function loadAvailability(assetId, date) {
         try {
-            const dayOfWeek = new Date(date).getDay();
-            const { data: rules } = await supabase
+            const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+            const { data: rules, error: rulesError } = await supabase
                 .from("asset_availability_rules")
                 .select("*")
                 .eq("asset_id", assetId)
                 .eq("day_of_week", dayOfWeek);
-
+            if (rulesError)
+                throw rulesError;
             const dayStart = `${date}T00:00:00.000Z`;
             const dayEnd = `${date}T23:59:59.999Z`;
-            const { data: dayBookings } = await supabase
+            const { data: dayBookings, error: bookingsError } = await supabase
                 .from("bookings")
                 .select("*")
                 .eq("asset_id", assetId)
                 .in("status", ["pending", "confirmed"])
                 .gte("start_at", dayStart)
                 .lte("start_at", dayEnd);
-
+            if (bookingsError)
+                throw bookingsError;
             setAvailability({
                 assetId,
                 date,
-                windows: (rules ?? []).map((r) => ({
-                    startHour: r.start_hour,
-                    endHour: r.end_hour,
-                })),
-                bookings: dayBookings ?? [],
+                windows: buildWindows(date, rules ?? []),
+                bookings: (dayBookings ?? []).map(mapBooking),
             });
         }
         catch (error) {
@@ -162,22 +190,27 @@ export function AppProvider({ children }) {
     }
     async function hydrateSession(nextSession) {
         try {
-            const { data: myBookings } = await supabase
+            const { data: myBookingRows, error: myBookingsError } = await supabase
                 .from("bookings")
-                .select("*, assets(title)")
+                .select("*")
                 .eq("requester_id", nextSession.user.id);
-            setBookings(myBookings ?? []);
-
+            if (myBookingsError)
+                throw myBookingsError;
+            setBookings((myBookingRows ?? []).map(mapBooking));
             if (nextSession.user.role === "asset_owner") {
-                const { data: owned } = await supabase
+                const { data: ownedRows, error: ownedError } = await supabase
                     .from("bookings")
-                    .select("*, assets!inner(title, owner_id)")
+                    .select("*, assets!inner(owner_id)")
                     .eq("assets.owner_id", nextSession.user.id);
-                setOwnerBookings(owned ?? []);
-            } else {
+                if (ownedError)
+                    throw ownedError;
+                setOwnerBookings((ownedRows ?? []).map(mapBooking));
+            }
+            else {
                 setOwnerBookings([]);
             }
-        } catch (error) {
+        }
+        catch (error) {
             setMessage(error.message);
         }
     }
@@ -188,19 +221,19 @@ export function AppProvider({ children }) {
                 email: loginForm.email,
                 password: loginForm.password,
             });
-            if (error) throw error;
+            if (error)
+                throw error;
             const { data: profile } = await supabase
                 .from("profiles")
                 .select("*")
                 .eq("id", data.user.id)
-                .single();
-            setSession({
-                token: data.session.access_token,
-                user: { ...profile, email: data.user.email },
-            });
-            setMessage(`Signed in as ${profile.name}.`);
+                .maybeSingle();
+            const user = mapAuthUser(data.user, profile);
+            setSession({ token: data.session.access_token, user });
+            setMessage(`Signed in as ${user.name}.`);
             return true;
-        } catch (error) {
+        }
+        catch (error) {
             setMessage(error.message);
             return false;
         }
@@ -219,10 +252,12 @@ export function AppProvider({ children }) {
                     },
                 },
             });
-            if (error) throw error;
+            if (error)
+                throw error;
             setMessage("Account created. Sign in with the same credentials.");
             setLoginForm({ email: registerForm.email, password: registerForm.password });
-        } catch (error) {
+        }
+        catch (error) {
             setMessage(error.message);
         }
     }
@@ -235,11 +270,7 @@ export function AppProvider({ children }) {
         try {
             const response = await api.createBooking(session.token, { assetId, ...bookingForm });
             setMessage(response.notification);
-            const { data: myBookings } = await supabase
-                .from("bookings")
-                .select("*, assets(title)")
-                .eq("requester_id", session.user.id);
-            setBookings(myBookings ?? []);
+            await hydrateSession(session);
             await loadAvailability(assetId, selectedDate);
         }
         catch (error) {
@@ -256,16 +287,15 @@ export function AppProvider({ children }) {
             await api.createAsset(session.token, assetForm);
             setAssetForm(emptyAssetForm);
             await refreshAssets();
-            setMessage("Asset created.");
+            setMessage("Asset created. QR link generated.");
         }
         catch (error) {
             setMessage(error.message);
         }
     }
     async function updateBookingDecision(bookingId, action) {
-        if (!session) {
+        if (!session)
             return;
-        }
         try {
             if (action === "confirm") {
                 await api.confirmBooking(session.token, bookingId);
@@ -273,11 +303,7 @@ export function AppProvider({ children }) {
             else {
                 await api.rejectBooking(session.token, bookingId);
             }
-            const { data: owned } = await supabase
-                .from("bookings")
-                .select("*, assets!inner(title, owner_id)")
-                .eq("assets.owner_id", session.user.id);
-            setOwnerBookings(owned ?? []);
+            await hydrateSession(session);
             setMessage(`Booking ${action}ed.`);
         }
         catch (error) {
@@ -286,42 +312,38 @@ export function AppProvider({ children }) {
     }
     const loadMonthAvailability = useCallback(async (assetId, month) => {
         try {
-            const { data: rules } = await supabase
+            const { data: rules, error: rulesError } = await supabase
                 .from("asset_availability_rules")
                 .select("*")
                 .eq("asset_id", assetId);
-
-            const [year, mo] = month.split("-").map(Number);
-            const daysInMonth = new Date(year, mo, 0).getDate();
+            if (rulesError)
+                throw rulesError;
+            const [year, monthNumber] = month.split("-").map(Number);
+            const daysInMonth = new Date(year, monthNumber, 0).getDate();
             const monthStart = `${month}-01T00:00:00.000Z`;
             const monthEnd = `${month}-${String(daysInMonth).padStart(2, "0")}T23:59:59.999Z`;
-
-            const { data: monthBookings } = await supabase
+            const { data: bookingRows, error: bookingsError } = await supabase
                 .from("bookings")
                 .select("*")
                 .eq("asset_id", assetId)
                 .in("status", ["pending", "confirmed"])
                 .gte("start_at", monthStart)
                 .lte("start_at", monthEnd);
-
-            const days = {};
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${month}-${String(d).padStart(2, "0")}`;
-                const dayOfWeek = new Date(dateStr).getDay();
-                const dayRules = (rules ?? []).filter((r) => r.day_of_week === dayOfWeek);
-                const dayBk = (monthBookings ?? []).filter(
-                    (b) => b.start_at.slice(0, 10) === dateStr
-                );
-                days[dateStr] = {
-                    totalWindowHours: dayRules.reduce((sum, r) => sum + (r.end_hour - r.start_hour), 0),
-                    bookedHours: dayBk.reduce((sum, b) => {
-                        const s = new Date(b.start_at);
-                        const e = new Date(b.end_at);
-                        return sum + (e - s) / (1000 * 60 * 60);
-                    }, 0),
-                    hasAvailability: dayRules.length > 0,
+            if (bookingsError)
+                throw bookingsError;
+            const days = Array.from({ length: daysInMonth }, (_, index) => {
+                const day = index + 1;
+                const date = `${month}-${String(day).padStart(2, "0")}`;
+                const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+                const dayRules = (rules ?? []).filter((rule) => rule.day_of_week === dayOfWeek);
+                const dayBookings = (bookingRows ?? []).filter((booking) => booking.start_at.slice(0, 10) === date);
+                const slotCount = dayRules.reduce((sum, rule) => sum + Math.max(rule.end_hour - rule.start_hour, 0), 0);
+                return {
+                    date,
+                    hasOpenSlots: slotCount > dayBookings.length,
+                    slotCount,
                 };
-            }
+            });
             setMonthAvailability({ assetId, month, days });
         }
         catch (error) {
@@ -420,6 +442,7 @@ export function AppProvider({ children }) {
         lastBookingRef,
         session,
         loadMonthAvailability,
+        refreshAssets,
         createAnonymousBooking,
     ]);
     return _jsx(AppContext.Provider, { value: value, children: children });

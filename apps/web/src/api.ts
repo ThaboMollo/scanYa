@@ -70,7 +70,7 @@ export const api = {
     return request<{ assets: Asset[] }>("/assets/mine", {}, token);
   },
   createAsset(token: string, input: Omit<Asset, "createdAt" | "id" | "ownerId" | "status">) {
-    return request<{ asset: Asset }>(
+    return request<{ asset: Asset; qrCode?: QrCode }>(
       "/assets",
       {
         method: "POST",

@@ -1,39 +1,52 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppState } from "../state/AppContext";
 import { api } from "../api";
+import { supabase } from "../lib/supabase";
+import { mapQrCode } from "../lib/dbMappers";
 import type { QrCode } from "@scanya/shared";
 
 export function WorkspaceQrPage() {
   const { assets, session } = useAppState();
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [error, setError] = useState<string>("");
 
   const myAssets = assets.filter((a) => a.ownerId === session?.user.id);
 
   const loadQrCodes = useCallback(async () => {
     if (!session) return;
-    try {
-      const { qrCodes: codes } = await api.listMyQrCodes(session.token);
-      setQrCodes(codes);
-    } catch {
-      // ignore
+
+    const { data, error: loadError } = await supabase
+      .from("qr_codes")
+      .select("*")
+      .eq("owner_id", session.user.id)
+      .order("token", { ascending: true });
+
+    if (loadError) {
+      setError(loadError.message);
+      return;
     }
+
+    setError("");
+    setQrCodes((data ?? []).map(mapQrCode));
   }, [session]);
 
   useEffect(() => {
-    loadQrCodes();
+    void loadQrCodes();
   }, [loadQrCodes]);
 
   const handleGenerate = async (assetId: string) => {
     if (!session) return;
     setGenerating(assetId);
+    setError("");
     try {
       await api.createQrCode(session.token, assetId);
       await loadQrCodes();
-    } catch {
-      // ignore
+    } catch (generateError) {
+      setError((generateError as Error).message);
+    } finally {
+      setGenerating(null);
     }
-    setGenerating(null);
   };
 
   const getQrForAsset = (assetId: string) =>
@@ -44,6 +57,7 @@ export function WorkspaceQrPage() {
   return (
     <div>
       <h1 className="section-title" style={{ fontSize: 22, marginBottom: 16 }}>QR Codes</h1>
+      {error && <div className="empty-state" style={{ marginBottom: 16 }}>{error}</div>}
 
       {myAssets.map((asset) => {
         const qr = getQrForAsset(asset.id);

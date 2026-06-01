@@ -1,5 +1,4 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
-
 async function request(path, options = {}, token) {
     const response = await fetch(`${apiBaseUrl}${path}`, {
         ...options,
@@ -15,40 +14,59 @@ async function request(path, options = {}, token) {
     }
     return payload;
 }
-
 export const api = {
-    // Assets (writes only — reads go through Supabase client)
+    login(email, password) {
+        return request("/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+        });
+    },
+    register(input) {
+        return request("/auth/register", {
+            method: "POST",
+            body: JSON.stringify(input),
+        });
+    },
+    me(token) {
+        return request("/me", {}, token);
+    },
+    updateMe(token, input) {
+        return request("/me", {
+            method: "PATCH",
+            body: JSON.stringify(input),
+        }, token);
+    },
+    listAssets() {
+        return request("/assets");
+    },
+    listMyAssets(token) {
+        return request("/assets/mine", {}, token);
+    },
     createAsset(token, input) {
         return request("/assets", {
             method: "POST",
             body: JSON.stringify(input),
         }, token);
     },
-    updateAsset(token, assetId, input) {
-        return request(`/assets/${assetId}`, {
-            method: "PATCH",
-            body: JSON.stringify(input),
-        }, token);
+    getAvailability(assetId, date) {
+        return request(`/assets/${assetId}/availability?date=${date}`);
     },
-    publishAsset(token, assetId) {
-        return request(`/assets/${assetId}/publish`, { method: "POST" }, token);
-    },
-    unpublishAsset(token, assetId) {
-        return request(`/assets/${assetId}/unpublish`, { method: "POST" }, token);
-    },
-
-    // Bookings (writes only)
+    getMonthAvailability: (assetId, month) => request(`/assets/${assetId}/availability/month?month=${month}`),
+    createAnonymousBooking: (input) => request("/bookings", {
+        method: "POST",
+        body: JSON.stringify(input),
+    }),
     createBooking(token, input) {
         return request("/bookings", {
             method: "POST",
             body: JSON.stringify(input),
         }, token);
     },
-    createAnonymousBooking(input) {
-        return request("/bookings", {
-            method: "POST",
-            body: JSON.stringify(input),
-        });
+    listMyBookings(token) {
+        return request("/bookings/mine", {}, token);
+    },
+    listOwnerBookings(token) {
+        return request("/owner/bookings", {}, token);
     },
     confirmBooking(token, bookingId) {
         return request(`/bookings/${bookingId}/confirm`, { method: "POST" }, token);
@@ -56,8 +74,12 @@ export const api = {
     rejectBooking(token, bookingId) {
         return request(`/bookings/${bookingId}/reject`, { method: "POST" }, token);
     },
-
-    // QR (writes only)
+    listMyQrCodes(token) {
+        return request("/qr/mine", {}, token);
+    },
+    resolveQr(token) {
+        return request(`/q/${token}`);
+    },
     createQrCode(token, assetId) {
         return request(`/assets/${assetId}/qr`, { method: "POST" }, token);
     },
