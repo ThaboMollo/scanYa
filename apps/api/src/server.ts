@@ -11,20 +11,36 @@ import { sendBookingCreatedEmail, sendBookingVerificationEmail, sendBookingStatu
 const app = express();
 const port = Number(process.env.API_PORT ?? 4000);
 
+const normalizeOrigin = (origin: string) => {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin.replace(/\/+$/, "");
+  }
+};
+
+const parseOrigins = (value?: string) =>
+  (value ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map(normalizeOrigin);
+
 // ─── Security ───────────────────────────────────────────────────────────────
 
 app.use(helmet());
 
 const allowedOrigins = [
-  process.env.APP_BASE_URL,
+  ...parseOrigins(process.env.ALLOWED_ORIGINS),
+  ...parseOrigins(process.env.APP_BASE_URL),
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-].filter(Boolean) as string[];
+].filter(Boolean);
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
         callback(null, true);
         return;
       }
