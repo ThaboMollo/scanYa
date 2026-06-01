@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider } from "./state/AppContext";
+import { AlertStack } from "./components/AlertStack";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { WorkspaceLayout } from "./layouts/WorkspaceLayout";
 import { AssetsPage } from "./pages/AssetsPage";
@@ -15,9 +16,10 @@ import "./styles/global.css";
 import "./styles/public.css";
 import "./styles/workspace.css";
 import "./styles/calendar.css";
+import "./styles/alerts.css";
 function AppRoutes() {
     return (_jsxs(Routes, { children: [_jsxs(Route, { element: _jsx(PublicLayout, {}), children: [_jsx(Route, { path: "/", element: _jsx(Navigate, { to: "/assets", replace: true }) }), _jsx(Route, { path: "/assets", element: _jsx(AssetsPage, {}) }), _jsx(Route, { path: "/assets/:assetId", element: _jsx(AssetDetailPage, {}) }), _jsx(Route, { path: "/q/:token", element: _jsx(AssetDetailPage, {}) })] }), _jsx(Route, { path: "/app/login", element: _jsx(LoginPage, {}) }), _jsxs(Route, { path: "/app", element: _jsx(WorkspaceLayout, {}), children: [_jsx(Route, { index: true, element: _jsx(WorkspaceDashboardPage, {}) }), _jsx(Route, { path: "assets", element: _jsx(WorkspaceAssetsPage, {}) }), _jsx(Route, { path: "bookings", element: _jsx(WorkspaceBookingsPage, {}) }), _jsx(Route, { path: "qr", element: _jsx(WorkspaceQrPage, {}) }), _jsx(Route, { path: "profile", element: _jsx(ProfilePage, {}) })] }), _jsx(Route, { path: "*", element: _jsx(Navigate, { to: "/assets", replace: true }) })] }));
 }
 export function App() {
-    return (_jsx(AppProvider, { children: _jsx(BrowserRouter, { children: _jsx(AppRoutes, {}) }) }));
+    return (_jsx(AppProvider, { children: _jsxs(BrowserRouter, { children: [_jsx(AlertStack, {}), _jsx(AppRoutes, {})] }) }));
 }

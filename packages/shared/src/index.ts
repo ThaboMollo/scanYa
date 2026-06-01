@@ -1,4 +1,4 @@
-export type UserRole = "asset_owner" | "event_organizer" | "attendee";
+export type UserRole = "super_admin" | "asset_owner" | "event_organizer" | "attendee";
 
 export type User = {
   id: string;
@@ -9,6 +9,7 @@ export type User = {
   name: string;
   password: string;
   role: UserRole;
+  whatsappNumber: string | null;
 };
 
 export type PublicUser = Omit<User, "password">;
@@ -58,6 +59,7 @@ export type Booking = {
   contactName: string;
   createdAt: string;
   endAt: string;
+  location: string;
   notes: string;
   requesterId: string | null;
   startAt: string;
@@ -101,4 +103,9 @@ export type MonthAvailabilityResponse = {
 export type LoginResponse = {
   session: Session;
   user: PublicUser;
+};
+
+export type AssetBookingDetails = {
+  asset: { id: string; title: string };
+  owner: { name: string; whatsappNumber: string | null };
 };

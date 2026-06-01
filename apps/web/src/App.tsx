@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider } from "./state/AppContext";
+import { AlertStack } from "./components/AlertStack";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { WorkspaceLayout } from "./layouts/WorkspaceLayout";
 import { AssetsPage } from "./pages/AssetsPage";
@@ -14,6 +15,7 @@ import "./styles/global.css";
 import "./styles/public.css";
 import "./styles/workspace.css";
 import "./styles/calendar.css";
+import "./styles/alerts.css";
 
 function AppRoutes() {
   return (
@@ -48,6 +50,7 @@ export function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <AlertStack />
         <AppRoutes />
       </BrowserRouter>
     </AppProvider>

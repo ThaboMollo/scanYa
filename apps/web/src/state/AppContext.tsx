@@ -8,12 +8,19 @@ import {
   type FormEvent,
   type PropsWithChildren,
 } from "react";
-import type { Asset, AvailabilityResponse, Booking, MonthAvailabilityResponse, PublicUser, User } from "@scanya/shared";
+import type { Asset, AssetStatus, AvailabilityResponse, Booking, MonthAvailabilityResponse, PublicUser, User } from "@scanya/shared";
 import { api } from "../api";
 import { supabase } from "../lib/supabase";
 import { mapAsset, mapBooking, mapProfile } from "../lib/dbMappers";
 
 type DbRow = Record<string, any>;
+
+type SystemAlert = {
+  id: string;
+  type: "success" | "error" | "info" | "warning";
+  message: string;
+  createdAt: string;
+};
 
 type SessionState = {
   token: string;
@@ -49,11 +56,16 @@ type AssetFormState = {
 type AppContextValue = {
   assetForm: AssetFormState;
   assets: Asset[];
+  authLoading: boolean;
   availability: AvailabilityResponse | null;
   bookingForm: BookingFormState;
   bookings: Booking[];
   loginForm: { email: string; password: string };
   message: string;
+  alerts: SystemAlert[];
+  pushAlert: (type: SystemAlert["type"], message: string) => void;
+  dismissAlert: (id: string) => void;
+  clearAlerts: () => void;
   ownerBookings: Booking[];
   registerForm: RegisterFormState;
   selectedAsset: Asset | null;
@@ -74,6 +86,7 @@ type AppContextValue = {
   clearMessage: () => void;
   createAsset: (event: FormEvent) => Promise<void>;
   createBooking: (event: FormEvent, assetId: string) => Promise<void>;
+  updateAssetStatus: (assetId: string, status: AssetStatus) => Promise<void>;
   loadAvailability: (assetId: string, date: string) => Promise<void>;
   refreshAssets: () => Promise<void>;
   selectDate: (date: string) => void;
@@ -149,17 +162,20 @@ function mapAuthUser(user: any, profile?: DbRow | null): PublicUser {
     lastLoginAt: null,
     name: metadata.name ?? user.email ?? "User",
     role: metadata.role ?? "attendee",
+    whatsappNumber: metadata.whatsapp_number ?? null,
   };
 }
 
 export function AppProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<SessionState | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [authLoading, setAuthLoading] = useState(true);
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(tomorrow());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [ownerBookings, setOwnerBookings] = useState<Booking[]>([]);
   const [message, setMessage] = useState<string>("");
+  const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [loginForm, setLoginForm] = useState({
     email: "attendee@scanya.app",
     password: "password123",
@@ -213,9 +229,16 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [refreshAssets]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }: any) => {
-      const supaSession = data.session;
-      if (!supaSession) return;
+    let mounted = true;
+
+    async function applyAuthSession(supaSession: any) {
+      if (!mounted) return;
+
+      if (!supaSession) {
+        setSession(null);
+        setAuthLoading(false);
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -223,35 +246,45 @@ export function AppProvider({ children }: PropsWithChildren) {
         .eq("id", supaSession.user.id)
         .maybeSingle();
 
+      if (!mounted) return;
+
       setSession({
         token: supaSession.access_token,
         user: mapAuthUser(supaSession.user, profile),
       });
-    });
+      setAuthLoading(false);
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, supaSession: any) => {
+    supabase.auth
+      .getSession()
+      .then(({ data }: any) => applyAuthSession(data.session))
+      .catch((error) => {
+        if (!mounted) return;
+        setMessage((error as Error).message);
+        setAuthLoading(false);
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, supaSession: any) => {
       if (event === "SIGNED_OUT") {
         setSession(null);
         setBookings([]);
         setOwnerBookings([]);
+        setAuthLoading(false);
         return;
       }
 
       if (!supaSession || (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED")) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", supaSession.user.id)
-        .maybeSingle();
-
-      setSession({
-        token: supaSession.access_token,
-        user: mapAuthUser(supaSession.user, profile),
+      void applyAuthSession(supaSession).catch((error) => {
+        setMessage((error as Error).message);
+        setAuthLoading(false);
       });
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -412,6 +445,18 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }
 
+  async function updateAssetStatus(assetId: string, status: AssetStatus) {
+    if (!session) return;
+
+    try {
+      await api.updateAssetStatus(session.token, assetId, status);
+      await refreshAssets();
+      setMessage(`Asset moved to ${status}.`);
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
+  }
+
   async function updateBookingDecision(bookingId: string, action: "confirm" | "reject") {
     if (!session) return;
 
@@ -497,6 +542,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [selectedSlot]);
 
   async function signOut() {
+    setAuthLoading(false);
     setSession(null);
     setBookings([]);
     setOwnerBookings([]);
@@ -508,6 +554,30 @@ export function AppProvider({ children }: PropsWithChildren) {
     setMessage("");
   }
 
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
+
+  const pushAlert = useCallback((type: SystemAlert["type"], message: string) => {
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    setAlerts((current) => [
+      ...current,
+      { id, type, message, createdAt: new Date().toISOString() },
+    ]);
+
+    if (type === "success" || type === "info") {
+      setTimeout(() => {
+        setAlerts((current) => current.filter((alert) => alert.id !== id));
+      }, 5000);
+    }
+  }, []);
+
+  const clearAlerts = useCallback(() => setAlerts([]), []);
+
   const selectedAsset = useMemo(
     () => assets.find((asset) => asset.id === availability?.assetId) ?? null,
     [assets, availability?.assetId],
@@ -517,11 +587,16 @@ export function AppProvider({ children }: PropsWithChildren) {
     () => ({
       assetForm,
       assets,
+      authLoading,
       availability,
       bookingForm,
       bookings,
       loginForm,
       message,
+      alerts,
+      pushAlert,
+      dismissAlert,
+      clearAlerts,
       ownerBookings,
       registerForm,
       selectedAsset,
@@ -536,6 +611,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       clearMessage,
       createAsset,
       createBooking,
+      updateAssetStatus,
       loadAvailability,
       loadMonthAvailability,
       refreshAssets,
@@ -559,11 +635,16 @@ export function AppProvider({ children }: PropsWithChildren) {
     [
       assetForm,
       assets,
+      authLoading,
       availability,
       bookingForm,
       bookings,
       calendarView,
       loginForm,
+      alerts,
+      pushAlert,
+      dismissAlert,
+      clearAlerts,
       message,
       monthAvailability,
       ownerBookings,
@@ -578,6 +659,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       loadMonthAvailability,
       refreshAssets,
       createAnonymousBooking,
+      updateAssetStatus,
     ],
   );
 

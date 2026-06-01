@@ -7,6 +7,7 @@ export function mapProfile(row, email = "") {
         lastLoginAt: null,
         name: row.name ?? "",
         role: row.role,
+        whatsappNumber: row.whatsapp_number ?? null,
     };
 }
 export function mapAsset(row) {
@@ -32,6 +33,7 @@ export function mapBooking(row) {
         contactName: row.contact_name,
         createdAt: row.created_at,
         endAt: row.end_at,
+        location: row.location ?? "",
         notes: row.notes ?? "",
         requesterId: row.requester_id,
         startAt: row.start_at,
