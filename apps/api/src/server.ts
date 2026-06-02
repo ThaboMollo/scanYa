@@ -101,7 +101,7 @@ app.get("/health", (_request, response) => {
 });
 
 // Assets (write operations only — reads go directly to Supabase from frontend)
-app.post("/assets", writeLimiter, requireRole("asset_owner"), async (request: AuthenticatedRequest, response) => {
+app.post("/assets", writeLimiter, requireRole("asset_owner", "super_admin"), async (request: AuthenticatedRequest, response) => {
   const result = assetSchema.safeParse(request.body);
   if (!result.success) {
     response.status(400).json({ error: result.error.flatten() });
@@ -117,7 +117,7 @@ app.post("/assets", writeLimiter, requireRole("asset_owner"), async (request: Au
   }
 });
 
-app.patch("/assets/:id", writeLimiter, requireRole("asset_owner"), async (request: AuthenticatedRequest, response) => {
+app.patch("/assets/:id", writeLimiter, requireRole("asset_owner", "super_admin"), async (request: AuthenticatedRequest, response) => {
   const result = assetSchema.partial().safeParse(request.body);
   if (!result.success) {
     response.status(400).json({ error: result.error.flatten() });
@@ -125,26 +125,44 @@ app.patch("/assets/:id", writeLimiter, requireRole("asset_owner"), async (reques
   }
 
   try {
-    const asset = await store.updateAsset(String(request.params.id), request.userId!, result.data);
+    const asset = await store.updateAsset(String(request.params.id), request.userId!, result.data, request.userRole === "super_admin");
     response.json({ asset });
   } catch (error) {
     response.status(404).json({ error: (error as Error).message });
   }
 });
 
-app.post("/assets/:id/publish", writeLimiter, requireRole("asset_owner"), async (request: AuthenticatedRequest, response) => {
+app.post("/assets/:id/publish", writeLimiter, requireRole("asset_owner", "super_admin"), async (request: AuthenticatedRequest, response) => {
   try {
-    const asset = await store.setAssetStatus(String(request.params.id), request.userId!, "published");
+    const asset = await store.setAssetStatus(String(request.params.id), request.userId!, "published", request.userRole === "super_admin");
     response.json({ asset });
   } catch (error) {
     response.status(404).json({ error: (error as Error).message });
   }
 });
 
-app.post("/assets/:id/unpublish", writeLimiter, requireRole("asset_owner"), async (request: AuthenticatedRequest, response) => {
+app.post("/assets/:id/unpublish", writeLimiter, requireRole("asset_owner", "super_admin"), async (request: AuthenticatedRequest, response) => {
   try {
-    const asset = await store.setAssetStatus(String(request.params.id), request.userId!, "draft");
+    const asset = await store.setAssetStatus(String(request.params.id), request.userId!, "draft", request.userRole === "super_admin");
     response.json({ asset });
+  } catch (error) {
+    response.status(404).json({ error: (error as Error).message });
+  }
+});
+
+app.post("/assets/:id/archive", writeLimiter, requireRole("asset_owner", "super_admin"), async (request: AuthenticatedRequest, response) => {
+  try {
+    const asset = await store.setAssetStatus(String(request.params.id), request.userId!, "archived", request.userRole === "super_admin");
+    response.json({ asset });
+  } catch (error) {
+    response.status(404).json({ error: (error as Error).message });
+  }
+});
+
+app.get("/assets/:id/booking-details", requireAuth, async (request: AuthenticatedRequest, response) => {
+  try {
+    const details = await store.getAssetBookingDetails(String(request.params.id));
+    response.json(details);
   } catch (error) {
     response.status(404).json({ error: (error as Error).message });
   }

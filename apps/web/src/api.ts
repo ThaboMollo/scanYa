@@ -1,5 +1,7 @@
 import type {
   Asset,
+  AssetBookingDetails,
+  AssetStatus,
   AvailabilityResponse,
   Booking,
   LoginResponse,
@@ -79,11 +81,27 @@ export const api = {
       token,
     );
   },
+  updateAssetStatus(token: string, assetId: string, status: AssetStatus) {
+    const actions: Record<AssetStatus, string> = {
+      draft: "unpublish",
+      published: "publish",
+      archived: "archive",
+    };
+
+    return request<{ asset: Asset }>(
+      `/assets/${assetId}/${actions[status]}`,
+      { method: "POST" },
+      token,
+    );
+  },
   getAvailability(assetId: string, date: string) {
     return request<AvailabilityResponse>(`/assets/${assetId}/availability?date=${date}`);
   },
   getMonthAvailability: (assetId: string, month: string) =>
     request<MonthAvailabilityResponse>(`/assets/${assetId}/availability/month?month=${month}`),
+  getAssetBookingDetails(token: string, assetId: string) {
+    return request<AssetBookingDetails>(`/assets/${assetId}/booking-details`, {}, token);
+  },
 
   createAnonymousBooking: (input: {
     assetId: string;

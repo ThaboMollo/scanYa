@@ -2,7 +2,10 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 export function WorkspaceLayout() {
-    const { session, signOut, ownerBookings } = useAppState();
+    const { authLoading, session, signOut, ownerBookings } = useAppState();
+    if (authLoading) {
+        return _jsx("div", { className: "empty-state", children: "Loading workspace..." });
+    }
     if (!session) {
         return _jsx(Navigate, { to: "/app/login", replace: true });
     }

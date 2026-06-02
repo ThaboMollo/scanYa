@@ -48,10 +48,21 @@ export const api = {
             body: JSON.stringify(input),
         }, token);
     },
+    updateAssetStatus(token, assetId, status) {
+        const actions = {
+            draft: "unpublish",
+            published: "publish",
+            archived: "archive",
+        };
+        return request(`/assets/${assetId}/${actions[status]}`, { method: "POST" }, token);
+    },
     getAvailability(assetId, date) {
         return request(`/assets/${assetId}/availability?date=${date}`);
     },
     getMonthAvailability: (assetId, month) => request(`/assets/${assetId}/availability/month?month=${month}`),
+    getAssetBookingDetails(token, assetId) {
+        return request(`/assets/${assetId}/booking-details`, {}, token);
+    },
     createAnonymousBooking: (input) => request("/bookings", {
         method: "POST",
         body: JSON.stringify(input),

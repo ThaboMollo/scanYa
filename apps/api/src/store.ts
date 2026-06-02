@@ -49,6 +49,7 @@ export async function updateAsset(
   assetId: string,
   ownerId: string,
   input: Partial<CreateAssetInput>,
+  isAdmin = false,
 ) {
   const updateData: Record<string, unknown> = {};
   if (input.title !== undefined) updateData.title = input.title;
@@ -59,13 +60,16 @@ export async function updateAsset(
   if (input.minimumRentalHours !== undefined) updateData.minimum_rental_hours = input.minimumRentalHours;
   if (input.priceLabel !== undefined) updateData.price_label = input.priceLabel;
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("assets")
     .update(updateData)
-    .eq("id", assetId)
-    .eq("owner_id", ownerId)
-    .select()
-    .single();
+    .eq("id", assetId);
+
+  if (!isAdmin) {
+    query = query.eq("owner_id", ownerId);
+  }
+
+  const { data, error } = await query.select().single();
 
   if (error) throw new Error("Asset not found or access denied.");
   return data;
@@ -75,14 +79,18 @@ export async function setAssetStatus(
   assetId: string,
   ownerId: string,
   status: "draft" | "published" | "archived",
+  isAdmin = false,
 ) {
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("assets")
     .update({ status })
-    .eq("id", assetId)
-    .eq("owner_id", ownerId)
-    .select()
-    .single();
+    .eq("id", assetId);
+
+  if (!isAdmin) {
+    query = query.eq("owner_id", ownerId);
+  }
+
+  const { data, error } = await query.select().single();
 
   if (error) throw new Error("Asset not found or access denied.");
   return data;
@@ -247,6 +255,38 @@ export async function createQrCode(
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+export async function getAssetBookingDetails(assetId: string) {
+  const { data: asset, error: assetError } = await supabaseAdmin
+    .from("assets")
+    .select("id, title, owner_id, status")
+    .eq("id", assetId)
+    .single();
+
+  if (assetError || !asset) throw new Error("Asset not found.");
+  if (asset.status !== "published") throw new Error("Asset is not available for booking.");
+
+  const { data: owner, error: ownerError } = await supabaseAdmin
+    .from("profiles")
+    .select("name, whatsapp_number")
+    .eq("id", asset.owner_id)
+    .single();
+
+  // Degrade gracefully: a missing/erroring profile yields a null WhatsApp number
+  // (the booking UI blocks the handoff on that). Log so a genuine query failure
+  // isn't silently indistinguishable from an owner who simply hasn't added one.
+  if (ownerError) {
+    console.warn(`Owner profile lookup failed for asset ${assetId}:`, ownerError.message);
+  }
+
+  return {
+    asset: { id: asset.id, title: asset.title },
+    owner: {
+      name: owner?.name ?? "",
+      whatsappNumber: owner?.whatsapp_number ?? null,
+    },
+  };
+}
 
 export async function getAssetOwnerEmail(assetId: string): Promise<string | null> {
   const { data } = await supabaseAdmin

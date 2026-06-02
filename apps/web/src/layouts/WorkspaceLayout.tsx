@@ -2,7 +2,11 @@ import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 
 export function WorkspaceLayout() {
-  const { session, signOut, ownerBookings } = useAppState();
+  const { authLoading, session, signOut, ownerBookings } = useAppState();
+
+  if (authLoading) {
+    return <div className="empty-state">Loading workspace...</div>;
+  }
 
   if (!session) {
     return <Navigate to="/app/login" replace />;
