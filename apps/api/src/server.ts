@@ -90,6 +90,7 @@ const bookingSchema = z.object({
   contactEmail: z.string().email(),
   contactName: z.string().min(2),
   endAt: z.string().datetime(),
+  location: z.string().min(2),
   notes: z.string().optional(),
   startAt: z.string().datetime(),
 });

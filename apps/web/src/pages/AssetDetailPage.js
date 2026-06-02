@@ -87,11 +87,11 @@ export function AssetDetailPage() {
             selectSlot(pending.selectedSlot);
             setCalendarView("day");
             setBookingStep("contact");
+            sessionStorage.removeItem("pendingBooking");
+            sessionStorage.removeItem("postLoginRedirect");
         }
         catch {
-            // ignore malformed pending state
-        }
-        finally {
+            // malformed JSON — discard it
             sessionStorage.removeItem("pendingBooking");
             sessionStorage.removeItem("postLoginRedirect");
         }

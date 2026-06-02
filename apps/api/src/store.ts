@@ -17,6 +17,7 @@ export interface CreateBookingInput {
   assetId: string;
   contactName: string;
   contactEmail: string;
+  location: string;
   startAt: string;
   endAt: string;
   notes?: string;
@@ -181,6 +182,7 @@ export async function createBooking(
       requester_id: requesterId,
       contact_name: input.contactName,
       contact_email: input.contactEmail,
+      location: input.location,
       start_at: input.startAt,
       end_at: input.endAt,
       status: isAnonymous ? "pending_verification" : "pending",

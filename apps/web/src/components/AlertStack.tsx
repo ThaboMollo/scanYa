@@ -5,8 +5,12 @@ export function AlertStack() {
 
   if (alerts.length === 0) return null;
 
+  const liveMode = alerts.some((alert) => alert.type === "error" || alert.type === "warning")
+    ? "assertive"
+    : "polite";
+
   return (
-    <div className="alert-stack" role="status" aria-live="polite">
+    <div className="alert-stack" role="status" aria-live={liveMode}>
       {alerts.map((alert) => (
         <div key={alert.id} className={`alert alert--${alert.type}`}>
           <span className="alert-message">{alert.message}</span>

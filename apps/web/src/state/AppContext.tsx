@@ -560,9 +560,9 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, []);
 
   const loadBookingDetails = useCallback(async (assetId: string) => {
-    if (!session) return;
+    if (!sessionToken) return;
     try {
-      const details = await api.getAssetBookingDetails(session.token, assetId);
+      const details = await api.getAssetBookingDetails(sessionToken, assetId);
       setBookingDetails(details);
       if (!details.owner.whatsappNumber) {
         pushAlert("warning", "This asset owner has not added a WhatsApp number yet.");
@@ -571,7 +571,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       setBookingDetails(null);
       pushAlert("error", (error as Error).message);
     }
-  }, [session, pushAlert]);
+  }, [sessionToken, pushAlert]);
 
   const submitBooking = useCallback(async (
     assetId: string,
@@ -602,6 +602,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       });
 
       setLastBookingRef(booking.id);
+      setBookingForm((current) => ({
+        ...current,
+        contactName: input.contactName,
+        contactEmail: input.contactEmail,
+        location: input.location,
+      }));
       setBookingStep("success");
 
       const message = buildWhatsappMessage({

@@ -11,7 +11,7 @@ export function ProfilePage() {
         return null;
     const handleSave = async () => {
         const normalized = normalizeWhatsappNumber(whatsapp);
-        if (!normalized) {
+        if (!normalized || normalized.length < 7) {
             pushAlert("warning", "Enter a valid WhatsApp number.");
             return;
         }
