@@ -1,13 +1,14 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 import { BookingCalendar } from "../components/BookingCalendar";
 import { supabase } from "../lib/supabase";
 import { mapQrCode } from "../lib/dbMappers";
 export function AssetDetailPage() {
     const { assetId, token } = useParams();
-    const { assets, refreshAssets } = useAppState();
+    const [searchParams] = useSearchParams();
+    const { assets, refreshAssets, session, selectDate, selectSlot, loadAvailability, setCalendarView, setBookingStep, } = useAppState();
     const [resolvedAssetId, setResolvedAssetId] = useState(assetId ?? null);
     const [isResolving, setIsResolving] = useState(Boolean(token && !assetId));
     const [resolveError, setResolveError] = useState("");
@@ -70,6 +71,41 @@ export function AssetDetailPage() {
             cancelled = true;
         };
     }, [assetId, token]);
+    useEffect(() => {
+        if (searchParams.get("booking") !== "1" || !session)
+            return;
+        const raw = sessionStorage.getItem("pendingBooking");
+        if (!raw)
+            return;
+        try {
+            const pending = JSON.parse(raw);
+            const targetAssetId = assetId ?? resolvedAssetId;
+            if (pending.assetId !== targetAssetId)
+                return;
+            selectDate(pending.selectedDate);
+            void loadAvailability(pending.assetId, pending.selectedDate);
+            selectSlot(pending.selectedSlot);
+            setCalendarView("day");
+            setBookingStep("contact");
+        }
+        catch {
+            // ignore malformed pending state
+        }
+        finally {
+            sessionStorage.removeItem("pendingBooking");
+            sessionStorage.removeItem("postLoginRedirect");
+        }
+    }, [
+        searchParams,
+        session,
+        assetId,
+        resolvedAssetId,
+        selectDate,
+        loadAvailability,
+        selectSlot,
+        setCalendarView,
+        setBookingStep,
+    ]);
     const asset = useMemo(() => assets.find((entry) => entry.id === resolvedAssetId) ?? null, [assets, resolvedAssetId]);
     if (isResolving || (resolvedAssetId && assets.length === 0)) {
         return (_jsx("div", { className: "asset-page", children: _jsx("div", { className: "empty-state", children: "Loading asset\u2026" }) }));

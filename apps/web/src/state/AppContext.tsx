@@ -8,7 +8,8 @@ import {
   type FormEvent,
   type PropsWithChildren,
 } from "react";
-import type { Asset, AssetStatus, AvailabilityResponse, Booking, MonthAvailabilityResponse, PublicUser, User } from "@scanya/shared";
+import type { Asset, AssetBookingDetails, AssetStatus, AvailabilityResponse, Booking, MonthAvailabilityResponse, PublicUser, User } from "@scanya/shared";
+import { buildWhatsappMessage, buildWhatsappUrl } from "../lib/whatsapp";
 import { api } from "../api";
 import { supabase } from "../lib/supabase";
 import { mapAsset, mapBooking, mapProfile } from "../lib/dbMappers";
@@ -31,6 +32,7 @@ type BookingFormState = {
   contactEmail: string;
   contactName: string;
   endAt: string;
+  location: string;
   notes: string;
   startAt: string;
 };
@@ -77,12 +79,14 @@ type AppContextValue = {
   selectedSlot: { startAt: string; endAt: string } | null;
   bookingStep: "calendar" | "contact" | "success";
   lastBookingRef: string | null;
+  bookingDetails: AssetBookingDetails | null;
+  loadBookingDetails: (assetId: string) => Promise<void>;
+  submitBooking: (assetId: string, input: { contactName: string; contactEmail: string; location: string; notes: string }) => Promise<void>;
   setCalendarView: (view: "month" | "day") => void;
   setSelectedMonth: (month: string) => void;
   loadMonthAvailability: (assetId: string, month: string) => Promise<void>;
   selectSlot: (slot: { startAt: string; endAt: string } | null) => void;
   setBookingStep: (step: "calendar" | "contact" | "success") => void;
-  createAnonymousBooking: (assetId: string, input: { contactName: string; contactEmail: string; notes: string }) => Promise<void>;
   clearMessage: () => void;
   createAsset: (event: FormEvent) => Promise<void>;
   createBooking: (event: FormEvent, assetId: string) => Promise<void>;
@@ -132,6 +136,7 @@ const initialBookingForm: BookingFormState = {
   contactEmail: "attendee@scanya.app",
   contactName: "Attendee Demo",
   endAt: `${tomorrow()}T16:00:00.000Z`,
+  location: "",
   notes: "",
   startAt: `${tomorrow()}T10:00:00.000Z`,
 };
@@ -192,8 +197,33 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [selectedSlot, selectSlot] = useState<{ startAt: string; endAt: string } | null>(null);
   const [bookingStep, setBookingStep] = useState<"calendar" | "contact" | "success">("calendar");
   const [lastBookingRef, setLastBookingRef] = useState<string | null>(null);
+  const [bookingDetails, setBookingDetails] = useState<AssetBookingDetails | null>(null);
   const sessionToken = session?.token ?? "";
   const userId = session?.user.id ?? "";
+
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
+
+  const pushAlert = useCallback((type: SystemAlert["type"], message: string) => {
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    setAlerts((current) => [
+      ...current,
+      { id, type, message, createdAt: new Date().toISOString() },
+    ]);
+
+    if (type === "success" || type === "info") {
+      setTimeout(() => {
+        setAlerts((current) => current.filter((alert) => alert.id !== id));
+      }, 5000);
+    }
+  }, []);
+
+  const clearAlerts = useCallback(() => setAlerts([]), []);
 
   const refreshAssets = useCallback(async () => {
     try {
@@ -378,6 +408,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       const user = mapAuthUser(data.user, profile);
       setSession({ token: data.session.access_token, user });
       setMessage(`Signed in as ${user.name}.`);
+      pushAlert("success", `Signed in as ${user.name}.`);
       return true;
     } catch (error) {
       setMessage((error as Error).message);
@@ -528,27 +559,68 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
-  const createAnonymousBooking = useCallback(async (
-    assetId: string,
-    input: { contactName: string; contactEmail: string; notes: string },
-  ) => {
-    if (!selectedSlot) return;
+  const loadBookingDetails = useCallback(async (assetId: string) => {
+    if (!session) return;
     try {
-      const { booking } = await api.createAnonymousBooking({
+      const details = await api.getAssetBookingDetails(session.token, assetId);
+      setBookingDetails(details);
+      if (!details.owner.whatsappNumber) {
+        pushAlert("warning", "This asset owner has not added a WhatsApp number yet.");
+      }
+    } catch (error) {
+      setBookingDetails(null);
+      pushAlert("error", (error as Error).message);
+    }
+  }, [session, pushAlert]);
+
+  const submitBooking = useCallback(async (
+    assetId: string,
+    input: { contactName: string; contactEmail: string; location: string; notes: string },
+  ) => {
+    if (!session) {
+      pushAlert("error", "Sign in before creating a booking.");
+      return;
+    }
+    if (!selectedSlot) {
+      pushAlert("error", "Select a time slot first.");
+      return;
+    }
+    if (!bookingDetails?.owner.whatsappNumber) {
+      pushAlert("warning", "This asset owner has not added a WhatsApp number yet.");
+      return;
+    }
+
+    try {
+      const { booking } = await api.createBooking(session.token, {
         assetId,
         contactName: input.contactName,
         contactEmail: input.contactEmail,
+        location: input.location,
         startAt: selectedSlot.startAt,
         endAt: selectedSlot.endAt,
         notes: input.notes || undefined,
       });
+
       setLastBookingRef(booking.id);
       setBookingStep("success");
-      setMessage("Booking request sent!");
+
+      const message = buildWhatsappMessage({
+        assetTitle: bookingDetails.asset.title,
+        contactName: input.contactName,
+        contactEmail: input.contactEmail,
+        location: input.location,
+        startAt: selectedSlot.startAt,
+        endAt: selectedSlot.endAt,
+        bookingId: booking.id,
+        notes: input.notes,
+      });
+
+      pushAlert("info", "Opening WhatsApp to send your request…");
+      window.location.href = buildWhatsappUrl(bookingDetails.owner.whatsappNumber, message);
     } catch (error) {
-      setMessage((error as Error).message);
+      pushAlert("error", (error as Error).message);
     }
-  }, [selectedSlot]);
+  }, [session, selectedSlot, bookingDetails, pushAlert]);
 
   async function signOut() {
     setAuthLoading(false);
@@ -562,30 +634,6 @@ export function AppProvider({ children }: PropsWithChildren) {
   function clearMessage() {
     setMessage("");
   }
-
-  const dismissAlert = useCallback((id: string) => {
-    setAlerts((current) => current.filter((alert) => alert.id !== id));
-  }, []);
-
-  const pushAlert = useCallback((type: SystemAlert["type"], message: string) => {
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    setAlerts((current) => [
-      ...current,
-      { id, type, message, createdAt: new Date().toISOString() },
-    ]);
-
-    if (type === "success" || type === "info") {
-      setTimeout(() => {
-        setAlerts((current) => current.filter((alert) => alert.id !== id));
-      }, 5000);
-    }
-  }, []);
-
-  const clearAlerts = useCallback(() => setAlerts([]), []);
 
   const selectedAsset = useMemo(
     () => assets.find((asset) => asset.id === availability?.assetId) ?? null,
@@ -617,6 +665,9 @@ export function AppProvider({ children }: PropsWithChildren) {
       selectedSlot,
       bookingStep,
       lastBookingRef,
+      bookingDetails,
+      loadBookingDetails,
+      submitBooking,
       clearMessage,
       createAsset,
       createBooking,
@@ -639,7 +690,6 @@ export function AppProvider({ children }: PropsWithChildren) {
       signOut,
       signUp,
       updateBookingDecision,
-      createAnonymousBooking,
     }),
     [
       assetForm,
@@ -664,10 +714,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       selectedSlot,
       bookingStep,
       lastBookingRef,
+      bookingDetails,
+      loadBookingDetails,
+      submitBooking,
       session,
       loadMonthAvailability,
       refreshAssets,
-      createAnonymousBooking,
       updateAssetStatus,
     ],
   );

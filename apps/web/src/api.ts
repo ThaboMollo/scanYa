@@ -108,6 +108,7 @@ export const api = {
     contactEmail: string;
     contactName: string;
     endAt: string;
+    location: string;
     notes?: string;
     startAt: string;
   }) =>
@@ -122,6 +123,7 @@ export const api = {
       contactEmail: string;
       contactName: string;
       endAt: string;
+      location: string;
       notes?: string;
       startAt: string;
     },

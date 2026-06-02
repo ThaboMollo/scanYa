@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppState } from "../state/AppContext";
 
 type Props = {
@@ -16,13 +16,25 @@ function formatTime(iso: string) {
 }
 
 export function ContactForm({ assetId, assetTitle }: Props) {
-  const { selectedSlot, selectedDate, setBookingStep, createAnonymousBooking } =
-    useAppState();
+  const {
+    selectedSlot,
+    selectedDate,
+    setBookingStep,
+    session,
+    bookingDetails,
+    loadBookingDetails,
+    submitBooking,
+  } = useAppState();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(session?.user.name ?? "");
+  const [email, setEmail] = useState(session?.user.email ?? "");
+  const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void loadBookingDetails(assetId);
+  }, [assetId, loadBookingDetails]);
 
   if (!selectedSlot) return null;
 
@@ -34,12 +46,15 @@ export function ContactForm({ assetId, assetTitle }: Props) {
     timeZone: "UTC",
   });
 
+  const ownerHasWhatsapp = Boolean(bookingDetails?.owner.whatsappNumber);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await createAnonymousBooking(assetId, {
+    await submitBooking(assetId, {
       contactName: name,
       contactEmail: email,
+      location,
       notes,
     });
     setSubmitting(false);
@@ -65,9 +80,7 @@ export function ContactForm({ assetId, assetTitle }: Props) {
 
       <form onSubmit={handleSubmit}>
         <div className="contact-field">
-          <label className="input-label" htmlFor="booking-name">
-            Your name
-          </label>
+          <label className="input-label" htmlFor="booking-name">Your name</label>
           <input
             id="booking-name"
             className="input"
@@ -80,9 +93,7 @@ export function ContactForm({ assetId, assetTitle }: Props) {
         </div>
 
         <div className="contact-field">
-          <label className="input-label" htmlFor="booking-email">
-            Your email
-          </label>
+          <label className="input-label" htmlFor="booking-email">Your email</label>
           <input
             id="booking-email"
             className="input"
@@ -95,9 +106,21 @@ export function ContactForm({ assetId, assetTitle }: Props) {
         </div>
 
         <div className="contact-field">
-          <label className="input-label" htmlFor="booking-notes">
-            Notes (optional)
-          </label>
+          <label className="input-label" htmlFor="booking-location">Where do you need it?</label>
+          <input
+            id="booking-location"
+            className="input"
+            type="text"
+            required
+            minLength={2}
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Address or area"
+          />
+        </div>
+
+        <div className="contact-field">
+          <label className="input-label" htmlFor="booking-notes">Notes (optional)</label>
           <textarea
             id="booking-notes"
             className="input"
@@ -111,14 +134,19 @@ export function ContactForm({ assetId, assetTitle }: Props) {
         <button
           className="btn-brand-lg"
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !ownerHasWhatsapp}
         >
-          {submitting ? "Sending..." : "Request Booking \u2192"}
+          {submitting ? "Sending..." : "Send via WhatsApp →"}
         </button>
       </form>
 
+      {!ownerHasWhatsapp && (
+        <p className="contact-note">
+          This asset owner has not added a WhatsApp number yet, so booking is unavailable.
+        </p>
+      )}
       <p className="contact-note">
-        No account needed. The owner will confirm via your email.
+        We'll save your request for <strong>{assetTitle}</strong>, then open WhatsApp to message the owner.
       </p>
     </div>
   );

@@ -1,4 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 function formatTime(iso) {
     return new Date(iso).toLocaleTimeString("en-GB", {
@@ -26,7 +27,8 @@ function buildSlots(windows, bookings, selectedSlot) {
     });
 }
 export function DayTimeline({ assetId }) {
-    const { selectedDate, availability, selectedSlot, selectSlot, setCalendarView, setBookingStep, } = useAppState();
+    const { selectedDate, availability, selectedSlot, selectSlot, setCalendarView, setBookingStep, session, } = useAppState();
+    const navigate = useNavigate();
     const dateObj = new Date(selectedDate + "T00:00:00Z");
     const dayLabel = dateObj.toLocaleDateString("en-US", {
         weekday: "long",
@@ -49,6 +51,15 @@ export function DayTimeline({ assetId }) {
         }
     };
     const handleContinue = () => {
+        if (!selectedSlot)
+            return;
+        if (!session) {
+            const redirect = `/assets/${assetId}?booking=1`;
+            sessionStorage.setItem("postLoginRedirect", redirect);
+            sessionStorage.setItem("pendingBooking", JSON.stringify({ assetId, selectedDate, selectedSlot }));
+            navigate(`/app/login?redirect=${encodeURIComponent(redirect)}`);
+            return;
+        }
         setBookingStep("contact");
     };
     return (_jsxs("div", { className: "day-timeline", children: [_jsxs("div", { className: "day-timeline-header", children: [_jsx("button", { className: "day-back-btn", onClick: () => setCalendarView("month"), "aria-label": "Back to month", children: "\u2190" }), _jsxs("div", { children: [_jsx("div", { className: "day-timeline-title", children: dayLabel }), _jsxs("div", { className: "day-timeline-subtitle", children: [slots.length, " slots \u2022 ", availableCount, " available"] })] })] }), _jsxs("div", { className: "day-slots", children: [slots.map((slot) => (_jsxs("div", { className: "day-slot-row", children: [_jsxs("div", { className: "day-slot-times", children: [_jsx("div", { className: "day-slot-start", children: formatTime(slot.startAt) }), _jsx("div", { className: "day-slot-end", children: formatTime(slot.endAt) })] }), _jsx("div", { className: `day-slot-bar day-slot-bar--${slot.status}` }), _jsxs("button", { className: `day-slot-card day-slot-card--${slot.status}`, onClick: () => handleSelect(slot), disabled: slot.status === "booked", children: [_jsxs("div", { children: [_jsxs("div", { className: "day-slot-label", children: [slot.status === "available" && "Available", slot.status === "selected" && "Selected \u2713", slot.status === "booked" && "Booked"] }), _jsxs("div", { className: "day-slot-duration", children: [getHours(slot.startAt, slot.endAt), " hours"] })] }), _jsxs("div", { className: "day-slot-action", children: [slot.status === "available" && "Select", slot.status === "selected" && "Change", slot.status === "booked" && "Unavailable"] })] })] }, slot.startAt))), slots.length === 0 && (_jsx("p", { className: "day-empty", children: "No availability slots for this day." }))] }), selectedSlot && (_jsxs("div", { className: "day-summary", children: [_jsxs("div", { children: [_jsx("div", { className: "day-summary-label", children: "Your booking" }), _jsxs("div", { className: "day-summary-value", children: [dayLabel, ", ", formatTime(selectedSlot.startAt), " \u2013", " ", formatTime(selectedSlot.endAt)] }), _jsxs("div", { className: "day-summary-duration", children: [getHours(selectedSlot.startAt, selectedSlot.endAt), " hours"] })] }), _jsx("button", { className: "btn-brand", onClick: handleContinue, children: "Continue \u2192" })] }))] }));

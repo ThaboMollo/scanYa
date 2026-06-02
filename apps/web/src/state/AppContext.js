@@ -1,5 +1,6 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, } from "react";
+import { buildWhatsappMessage, buildWhatsappUrl } from "../lib/whatsapp";
 import { api } from "../api";
 import { supabase } from "../lib/supabase";
 import { mapAsset, mapBooking, mapProfile } from "../lib/dbMappers";
@@ -29,6 +30,7 @@ const initialBookingForm = {
     contactEmail: "attendee@scanya.app",
     contactName: "Attendee Demo",
     endAt: `${tomorrow()}T16:00:00.000Z`,
+    location: "",
     notes: "",
     startAt: `${tomorrow()}T10:00:00.000Z`,
 };
@@ -83,8 +85,27 @@ export function AppProvider({ children }) {
     const [selectedSlot, selectSlot] = useState(null);
     const [bookingStep, setBookingStep] = useState("calendar");
     const [lastBookingRef, setLastBookingRef] = useState(null);
+    const [bookingDetails, setBookingDetails] = useState(null);
     const sessionToken = session?.token ?? "";
     const userId = session?.user.id ?? "";
+    const dismissAlert = useCallback((id) => {
+        setAlerts((current) => current.filter((alert) => alert.id !== id));
+    }, []);
+    const pushAlert = useCallback((type, message) => {
+        const id = typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        setAlerts((current) => [
+            ...current,
+            { id, type, message, createdAt: new Date().toISOString() },
+        ]);
+        if (type === "success" || type === "info") {
+            setTimeout(() => {
+                setAlerts((current) => current.filter((alert) => alert.id !== id));
+            }, 5000);
+        }
+    }, []);
+    const clearAlerts = useCallback(() => setAlerts([]), []);
     const refreshAssets = useCallback(async () => {
         try {
             const { data: publishedRows, error: publishedError } = await supabase
@@ -250,6 +271,7 @@ export function AppProvider({ children }) {
             const user = mapAuthUser(data.user, profile);
             setSession({ token: data.session.access_token, user });
             setMessage(`Signed in as ${user.name}.`);
+            pushAlert("success", `Signed in as ${user.name}.`);
             return true;
         }
         catch (error) {
@@ -387,26 +409,63 @@ export function AppProvider({ children }) {
             setMessage(error.message);
         }
     }, []);
-    const createAnonymousBooking = useCallback(async (assetId, input) => {
-        if (!selectedSlot)
+    const loadBookingDetails = useCallback(async (assetId) => {
+        if (!session)
             return;
         try {
-            const { booking } = await api.createAnonymousBooking({
+            const details = await api.getAssetBookingDetails(session.token, assetId);
+            setBookingDetails(details);
+            if (!details.owner.whatsappNumber) {
+                pushAlert("warning", "This asset owner has not added a WhatsApp number yet.");
+            }
+        }
+        catch (error) {
+            setBookingDetails(null);
+            pushAlert("error", error.message);
+        }
+    }, [session, pushAlert]);
+    const submitBooking = useCallback(async (assetId, input) => {
+        if (!session) {
+            pushAlert("error", "Sign in before creating a booking.");
+            return;
+        }
+        if (!selectedSlot) {
+            pushAlert("error", "Select a time slot first.");
+            return;
+        }
+        if (!bookingDetails?.owner.whatsappNumber) {
+            pushAlert("warning", "This asset owner has not added a WhatsApp number yet.");
+            return;
+        }
+        try {
+            const { booking } = await api.createBooking(session.token, {
                 assetId,
                 contactName: input.contactName,
                 contactEmail: input.contactEmail,
+                location: input.location,
                 startAt: selectedSlot.startAt,
                 endAt: selectedSlot.endAt,
                 notes: input.notes || undefined,
             });
             setLastBookingRef(booking.id);
             setBookingStep("success");
-            setMessage("Booking request sent!");
+            const message = buildWhatsappMessage({
+                assetTitle: bookingDetails.asset.title,
+                contactName: input.contactName,
+                contactEmail: input.contactEmail,
+                location: input.location,
+                startAt: selectedSlot.startAt,
+                endAt: selectedSlot.endAt,
+                bookingId: booking.id,
+                notes: input.notes,
+            });
+            pushAlert("info", "Opening WhatsApp to send your request…");
+            window.location.href = buildWhatsappUrl(bookingDetails.owner.whatsappNumber, message);
         }
         catch (error) {
-            setMessage(error.message);
+            pushAlert("error", error.message);
         }
-    }, [selectedSlot]);
+    }, [session, selectedSlot, bookingDetails, pushAlert]);
     async function signOut() {
         setAuthLoading(false);
         setSession(null);
@@ -418,24 +477,6 @@ export function AppProvider({ children }) {
     function clearMessage() {
         setMessage("");
     }
-    const dismissAlert = useCallback((id) => {
-        setAlerts((current) => current.filter((alert) => alert.id !== id));
-    }, []);
-    const pushAlert = useCallback((type, message) => {
-        const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        setAlerts((current) => [
-            ...current,
-            { id, type, message, createdAt: new Date().toISOString() },
-        ]);
-        if (type === "success" || type === "info") {
-            setTimeout(() => {
-                setAlerts((current) => current.filter((alert) => alert.id !== id));
-            }, 5000);
-        }
-    }, []);
-    const clearAlerts = useCallback(() => setAlerts([]), []);
     const selectedAsset = useMemo(() => assets.find((asset) => asset.id === availability?.assetId) ?? null, [assets, availability?.assetId]);
     const value = useMemo(() => ({
         assetForm,
@@ -461,6 +502,9 @@ export function AppProvider({ children }) {
         selectedSlot,
         bookingStep,
         lastBookingRef,
+        bookingDetails,
+        loadBookingDetails,
+        submitBooking,
         clearMessage,
         createAsset,
         createBooking,
@@ -483,7 +527,6 @@ export function AppProvider({ children }) {
         signOut,
         signUp,
         updateBookingDecision,
-        createAnonymousBooking,
     }), [
         assetForm,
         assets,
@@ -507,10 +550,12 @@ export function AppProvider({ children }) {
         selectedSlot,
         bookingStep,
         lastBookingRef,
+        bookingDetails,
+        loadBookingDetails,
+        submitBooking,
         session,
         loadMonthAvailability,
         refreshAssets,
-        createAnonymousBooking,
         updateAssetStatus,
     ]);
     return _jsx(AppContext.Provider, { value: value, children: children });

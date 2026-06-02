@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 import type { AvailabilityWindow, Booking } from "@scanya/shared";
 
@@ -57,7 +58,9 @@ export function DayTimeline({ assetId }: Props) {
     selectSlot,
     setCalendarView,
     setBookingStep,
+    session,
   } = useAppState();
+  const navigate = useNavigate();
 
   const dateObj = new Date(selectedDate + "T00:00:00Z");
   const dayLabel = dateObj.toLocaleDateString("en-US", {
@@ -83,6 +86,19 @@ export function DayTimeline({ assetId }: Props) {
   };
 
   const handleContinue = () => {
+    if (!selectedSlot) return;
+
+    if (!session) {
+      const redirect = `/assets/${assetId}?booking=1`;
+      sessionStorage.setItem("postLoginRedirect", redirect);
+      sessionStorage.setItem(
+        "pendingBooking",
+        JSON.stringify({ assetId, selectedDate, selectedSlot }),
+      );
+      navigate(`/app/login?redirect=${encodeURIComponent(redirect)}`);
+      return;
+    }
+
     setBookingStep("contact");
   };
 

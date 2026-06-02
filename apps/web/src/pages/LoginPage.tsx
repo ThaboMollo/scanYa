@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppContext";
 
 export function LoginPage() {
   const { signIn, setLoginForm, loginForm, message } = useAppState();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -13,7 +14,11 @@ export function LoginPage() {
     const success = await signIn(e);
     setSubmitting(false);
     if (success) {
-      navigate("/app");
+      const redirect =
+        searchParams.get("redirect") ??
+        sessionStorage.getItem("postLoginRedirect") ??
+        "/app";
+      navigate(redirect);
     }
   };
 
