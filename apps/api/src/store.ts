@@ -81,6 +81,29 @@ export async function setAssetStatus(
   status: "draft" | "published" | "archived",
   isAdmin = false,
 ) {
+  if (status === "published") {
+    const { data: asset, error: assetError } = await supabaseAdmin
+      .from("assets")
+      .select("owner_id")
+      .eq("id", assetId)
+      .single();
+
+    if (assetError || !asset) throw new Error("Asset not found or access denied.");
+    if (!isAdmin && asset.owner_id !== ownerId) {
+      throw new Error("Asset not found or access denied.");
+    }
+
+    const { data: ownerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("whatsapp_number")
+      .eq("id", asset.owner_id)
+      .single();
+
+    if (!ownerProfile?.whatsapp_number) {
+      throw new Error("Add your WhatsApp number before publishing assets.");
+    }
+  }
+
   let query = supabaseAdmin
     .from("assets")
     .update({ status })

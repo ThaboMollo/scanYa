@@ -448,12 +448,21 @@ export function AppProvider({ children }: PropsWithChildren) {
   async function updateAssetStatus(assetId: string, status: AssetStatus) {
     if (!session) return;
 
+    if (
+      status === "published" &&
+      session.user.role !== "super_admin" &&
+      !session.user.whatsappNumber
+    ) {
+      pushAlert("warning", "Add your WhatsApp number before publishing assets.");
+      return;
+    }
+
     try {
       await api.updateAssetStatus(session.token, assetId, status);
       await refreshAssets();
-      setMessage(`Asset moved to ${status}.`);
+      pushAlert("success", `Asset moved to ${status}.`);
     } catch (error) {
-      setMessage((error as Error).message);
+      pushAlert("error", (error as Error).message);
     }
   }
 

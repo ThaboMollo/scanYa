@@ -315,13 +315,19 @@ export function AppProvider({ children }) {
     async function updateAssetStatus(assetId, status) {
         if (!session)
             return;
+        if (status === "published" &&
+            session.user.role !== "super_admin" &&
+            !session.user.whatsappNumber) {
+            pushAlert("warning", "Add your WhatsApp number before publishing assets.");
+            return;
+        }
         try {
             await api.updateAssetStatus(session.token, assetId, status);
             await refreshAssets();
-            setMessage(`Asset moved to ${status}.`);
+            pushAlert("success", `Asset moved to ${status}.`);
         }
         catch (error) {
-            setMessage(error.message);
+            pushAlert("error", error.message);
         }
     }
     async function updateBookingDecision(bookingId, action) {
